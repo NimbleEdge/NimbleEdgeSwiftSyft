@@ -3,6 +3,8 @@ import Combine
 import SyftProto
 import Network
 
+// swiftlint:disable type_body_length
+
 enum SyftConnectionType {
     case http(URL)
     case socket(url: URL,
