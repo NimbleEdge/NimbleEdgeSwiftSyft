@@ -45,23 +45,25 @@ public class SyftClient: SyftClientProtocol {
     private let signallingClient: SignallingClient?
     private let connectionType: SyftConnectionType
     private var authToken: String?
+    var inference: Bool
 
-    init?(url: URL, connectionType: SyftConnectionType, authToken: String? = nil, signallingClient: SignallingClient? = nil) {
+    init?(url: URL, connectionType: SyftConnectionType, authToken: String? = nil, signallingClient: SignallingClient? = nil, inference: Bool) {
         self.signallingClient = signallingClient
         self.url = url
         self.authToken = authToken
         self.connectionType = connectionType
+        self.inference = inference
     }
 
     /// Initializes as `SyftClient` with a PyGrid server URL and an authentication token (if needed)
     /// - Parameters:
     ///   - url: Full URL to a PyGrid server (`ws`(websocket) and `http` protocols suppported)
     ///   - authToken: PyGrid authentication token
-    convenience public init?(url: URL, authToken: String? = nil) {
+    convenience public init?(url: URL, authToken: String? = nil, inference: Bool) {
 
         if url.scheme == "http" || url.scheme == "https"{
 
-            self.init(url: url, connectionType: .http(url), authToken: authToken)
+            self.init(url: url, connectionType: .http(url), authToken: authToken, inference: inference)
 
         } else if url.scheme == "ws" || url.scheme == "wss"{
 
@@ -70,7 +72,7 @@ public class SyftClient: SyftClientProtocol {
             let connectionType: SyftConnectionType = .socket(url: url,
                                                              sendMessageSubject: signallingClient.sendMessageSubject, receiveMessagePublisher: signallingClient.incomingMessagePublisher)
 //            self.init(url: url, connectionType: connectionType, signallingClient: signallingClient)
-            self.init(url: url, connectionType: connectionType, authToken: authToken, signallingClient: signallingClient)
+            self.init(url: url, connectionType: connectionType, authToken: authToken, signallingClient: signallingClient, inference: inference)
 
         } else {
             return nil
@@ -83,12 +85,12 @@ public class SyftClient: SyftClientProtocol {
     ///   - modelName: Model name as it is stored in the PyGrid server you are connecting to
     ///   - version: Version of the model (ex. 1.0)
     /// - Returns: `SyftJob`
-    public func newJob(modelName: String, version: String) -> SyftJob {
+    public func newJob(modelName: String, version: String, inference: Bool) -> SyftJob {
 
         return SyftJob(connectionType: self.connectionType,
                        modelName: modelName,
                        version: version,
-                       authToken: self.authToken)
+                       authToken: self.authToken, inference: self.inference ?? false)
     }
 }
 
@@ -98,7 +100,8 @@ public typealias ModelReport = (_ diffData: Data) -> Void
 
 /// Represents a single training cycle done by the client
 public class SyftJob: SyftJobProtocol {
-
+    var inference: Bool
+    var planModel: AnyPublisher<Plan, SwiftSyftError>?
     let url: URL
     var workerId: String?
     var requestKey: String?
@@ -127,6 +130,7 @@ public class SyftJob: SyftJobProtocol {
          modelName: String,
          version: String,
          authToken: String? = nil,
+         inference: Bool,
          batteryChargeCheck: @escaping () -> Bool = SyftJob.isBatteryCharging,
          wifiCheck: @escaping (NWPathMonitor, Bool) -> Future<Bool, Never> = SyftJob.validateWifiNetwork) {
 
@@ -136,6 +140,7 @@ public class SyftJob: SyftJobProtocol {
         self.authToken = authToken
         self.batteryChargeCheck = batteryChargeCheck
         self.wifiCheck = wifiCheck
+        self.inference = inference
 
         switch connectionType {
         case let .http(url):
@@ -299,7 +304,15 @@ public class SyftJob: SyftJobProtocol {
         let modelParamPublisher = cycleResponsePublisher
             .flatMap { (cycleResponse) -> AnyPublisher<Data, SwiftSyftError> in
                 let (cycleResponseSuccess, workerId) = cycleResponse
-                return self.downloadModel(forWorkerId: workerId, modelId: cycleResponseSuccess.modelId, requestKey: cycleResponseSuccess.requestKey)
+                if self.inference {
+                    if let data = UserDefaults.standard.value(forKey: "modelData") as? Data {
+                        return Just(data).setFailureType(to: SwiftSyftError.self).eraseToAnyPublisher()
+                    } else {
+                        return self.downloadModel(forWorkerId: workerId, modelId: cycleResponseSuccess.modelId, requestKey: cycleResponseSuccess.requestKey)
+                    }
+                } else {
+                    return self.downloadModel(forWorkerId: workerId, modelId: cycleResponseSuccess.modelId, requestKey: cycleResponseSuccess.requestKey)
+                }
             }
             .tryMap { try SyftProto_Execution_V1_State(serializedData: $0) }
             .mapError { error -> SwiftSyftError in
@@ -319,8 +332,23 @@ public class SyftJob: SyftJobProtocol {
                 let planDownloadPublishers: [AnyPublisher<Plan, SwiftSyftError>] =  cycleResponseSuccess.plans.enumerated().map { (_, dictElement) -> AnyPublisher<Plan, SwiftSyftError> in
 
                     let (planName, planId) = dictElement
-
-                    return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
+                    if self.inference {
+                        if let value = UserDefaults.standard.value(forKey: self.modelName) as? Data {
+                            print("inference is enable: \(self.inference)")
+                            do {
+                                let syftProtoExecutionPlan = try SyftProto_Execution_V1_Plan(serializedData: value)
+                                let plan = Plan(name: planName, planProto: syftProtoExecutionPlan)
+                                return Just(plan).setFailureType(to: SwiftSyftError.self).eraseToAnyPublisher()
+                            } catch {
+                                print("giving problem in taking it out")
+                            }
+                            return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
+                        } else {
+                            return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
+                        }
+                    } else {
+                        return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
+                    }
                 }
 
                 return Publishers.ZipMany(planDownloadPublishers).eraseToAnyPublisher()
@@ -473,7 +501,9 @@ public class SyftJob: SyftJobProtocol {
 
         return URLSession.shared.dataTaskPublisher(for: downloadModelRequest)
                     .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
-                    .map { $0.data }
+                    .map {
+                        UserDefaults.standard.set($0.data, forKey: "modelData")
+                        return $0.data }
                     .eraseToAnyPublisher()
 
     }
@@ -501,10 +531,13 @@ public class SyftJob: SyftJobProtocol {
         downloadPlanRequest.httpMethod = "GET"
 
         return URLSession.shared.dataTaskPublisher(for: downloadPlanRequest)
-                    .tryMap { try SyftProto_Execution_V1_Plan(serializedData: $0.data) }
-                    .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
-                    .map { Plan(name: planName, planProto: $0) }
-                    .eraseToAnyPublisher()
+                            .tryMap {
+                                UserDefaults.standard.set($0.data, forKey: self.modelName)
+                                return try SyftProto_Execution_V1_Plan(serializedData: $0.data)
+                            }
+                            .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
+                            .map { Plan(name: planName, planProto: $0) }
+                            .eraseToAnyPublisher()
 
     }
 
