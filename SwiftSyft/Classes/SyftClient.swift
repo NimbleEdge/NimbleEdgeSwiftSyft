@@ -128,6 +128,8 @@ public class SyftJob: SyftJobProtocol {
     private let batteryChargeCheck: () -> Bool
     private let wifiCheck: (NWPathMonitor, Bool) -> Future<Bool, Never>
 
+    private let queue = DispatchQueue(label: "com.swiftsyft.syftjob.queue")
+
     init(connectionType: SyftConnectionType,
          modelName: String,
          version: String,
@@ -167,7 +169,9 @@ public class SyftJob: SyftJobProtocol {
         // Continue if battery charging check is false or if true, check that the device is indeed charging
         if chargeDetection && !self.batteryChargeCheck() {
             let error = SwiftSyftError.batteryConstraintsFailure
-            self.onErrorBlock(error)
+            queue.async {
+                self.onErrorBlock(error)
+            }
             return
         }
 
@@ -190,7 +194,9 @@ public class SyftJob: SyftJobProtocol {
 
             } else {
 
-                self.onErrorBlock(SwiftSyftError.networkConstraintsFailure)
+                self.queue.async {
+                    self.onErrorBlock(SwiftSyftError.networkConstraintsFailure)
+                }
 
             }
         }.store(in: &self.disposeBag)
@@ -408,14 +414,20 @@ public class SyftJob: SyftJobProtocol {
                     case .cycleRejected(let status, let timeout, _) where status == "rejected":
 
                         guard let timeout = timeout else {
-                            self.onRejectedBlock(nil)
+                            queue.async {
+                                self.onRejectedBlock(nil)
+                            }
                             return
                         }
 
-                        self.onRejectedBlock(TimeInterval(timeout))
+                        queue.async {
+                            self.onRejectedBlock(TimeInterval(timeout))
+                        }
 
                     default:
-                        self.onErrorBlock(error)
+                        queue.async {
+                            self.onErrorBlock(error)
+                        }
                     }
                 }
             }, receiveValue: { [unowned self] (clientConfig, planDictionary, modelParam) in
@@ -428,7 +440,12 @@ public class SyftJob: SyftJobProtocol {
 //                self?.onReadyBlock(planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
 
                 let model = SyftModel(modelState: modelParam)
-                self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
+
+                queue.async {
+
+                    self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
+
+                }
 
             }).store(in: &disposeBag)
 
@@ -594,7 +611,9 @@ public class SyftJob: SyftJobProtocol {
             case .finished:
                 break
             case .failure(let error):
-                self.onErrorBlock(error)
+                queue.async {
+                    self.onErrorBlock(error)
+                }
             }
 
         }, receiveValue: { (result) in
@@ -612,7 +631,9 @@ public class SyftJob: SyftJobProtocol {
             case .finished:
                 break
             case .failure:
-                self.onErrorBlock(SwiftSyftError.networkResponseError(underlyingError: nil))
+                queue.async {
+                    self.onErrorBlock(SwiftSyftError.networkResponseError(underlyingError: nil))
+                }
             }
 
         }, receiveValue: { [unowned self] cycleRequestResponse in
