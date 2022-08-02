@@ -1,15 +1,23 @@
 #
-# Be sure to run `pod lib lint SwiftSyft.podspec' to ensure this is a
-# valid spec before submitting.
+#  Be sure to run `pod spec lint NimbleEdgeSwiftySyft.podspec' to ensure this is a
+#  valid spec and to remove all comments including this before submitting the spec.
 #
-# Any lines starting with a # are optional, but their use is encouraged
-# To learn more about a Podspec see https://guides.cocoapods.org/syntax/podspec.html
+#  To learn more about Podspec attributes see https://guides.cocoapods.org/syntax/podspec.html
+#  To see working Podspecs in the CocoaPods repo see https://github.com/CocoaPods/Specs/
 #
 
 Pod::Spec.new do |s|
-  s.name             = 'OpenMinedSwiftSyft'
+
+  # ―――  Spec Metadata  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
+  #
+  #  These will help people to find your library, and whilst it
+  #  can feel like a chore to fill in it's definitely to your advantage. The
+  #  summary should be tweet-length, and the description more in depth.
+  #
+
+  s.name         = "NimbleEdgeSwiftySyft"
   s.module_name      = 'SwiftSyft'
-  s.version          = '0.5.0-rc.1'
+  s.version          = '0.0.2'
   s.summary          = 'The official Syft worker for iOS, built in Swift.'
 
 # This description is used to generate tags and improve search results.
@@ -23,10 +31,10 @@ Pod::Spec.new do |s|
   Federated Learning.
                        DESC
 
-  s.homepage         = 'https://github.com/OpenMined/SwiftSyft'
+  s.homepage         = 'https://github.com/kishanNimbleEdge/kishanNimbleEdge.git'
   s.license          = { :type => 'Apache 2.0', :file => 'LICENSE' }
-  s.author           = { 'OpenMined' => 'author@openmined.com' }
-  s.source           = { :git => 'https://github.com/OpenMined/SwiftSyft.git', :tag => "v#{s.version.to_s}" }
+  s.author           = { 'NimbleEdge' => 'dev@nimbleedge.com' }
+  s.source           = { :git => 'https://github.com/NimbleEdge/NimbleEdgeSwiftSyft.git', :tag => "#{s.version.to_s}" }
 
   s.pod_target_xcconfig = { 'ENABLE_BITCODE' => 'NO' }
   s.ios.deployment_target = '13.0'
@@ -41,7 +49,7 @@ Pod::Spec.new do |s|
     'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_ROOT}/LibTorch/install/include"',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64'
   }
-  
+
   # s.resource_bundles = {
   #   'SwiftSyft' => ['SwiftSyft/Assets/*.png']
   # }
@@ -52,13 +60,13 @@ Pod::Spec.new do |s|
   s.dependency 'LibTorch', '~> 1.7'
   s.dependency 'GoogleWebRTC', '~> 1.1.0'
   s.dependency 'SyftProto', '0.4.9'
-  
-  s.test_spec 'Tests' do |test_spec|
-    test_spec.source_files = 'Tests/*.swift'
 
-    test_spec.resources = 'Tests/Resources/*.{json,proto}'
-    test_spec.dependency 'OHHTTPStubs/Swift'
-    test_spec.requires_app_host = true
-  end
+ # s.test_spec 'Tests' do |test_spec|
+ #   test_spec.source_files = 'Tests/*.swift'
 
+ #   test_spec.resources = 'Tests/Resources/*.{json,proto}'
+ #   test_spec.dependency 'OHHTTPStubs/Swift'
+ #   test_spec.requires_app_host = true
+ # end
 end
+
