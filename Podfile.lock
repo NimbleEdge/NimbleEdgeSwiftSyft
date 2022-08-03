@@ -3,32 +3,14 @@ PODS:
     - Charts/Core (= 3.6.0)
   - Charts/Core (3.6.0)
   - GoogleWebRTC (1.1.31999)
-  - LibTorch (1.7.0):
-    - LibTorch/Core (= 1.7.0)
-  - LibTorch/Core (1.7.0):
+  - LibTorch (1.12.0):
+    - LibTorch/Core (= 1.12.0)
+  - LibTorch/Core (1.12.0):
     - LibTorch/Torch
-  - LibTorch/Torch (1.7.0)
-  - OHHTTPStubs/Core (9.0.0)
-  - OHHTTPStubs/Default (9.0.0):
-    - OHHTTPStubs/Core
-    - OHHTTPStubs/JSON
-    - OHHTTPStubs/NSURLSession
-    - OHHTTPStubs/OHPathHelpers
-  - OHHTTPStubs/JSON (9.0.0):
-    - OHHTTPStubs/Core
-  - OHHTTPStubs/NSURLSession (9.0.0):
-    - OHHTTPStubs/Core
-  - OHHTTPStubs/OHPathHelpers (9.0.0)
-  - OHHTTPStubs/Swift (9.0.0):
-    - OHHTTPStubs/Default
-  - OpenMinedSwiftSyft (0.5.0-rc.1):
+  - LibTorch/Torch (1.12.0)
+  - NimbleEdgeSwiftySyft (0.0.2):
     - GoogleWebRTC (~> 1.1.0)
     - LibTorch (~> 1.7)
-    - SyftProto (= 0.4.9)
-  - OpenMinedSwiftSyft/Tests (0.5.0-rc.1):
-    - GoogleWebRTC (~> 1.1.0)
-    - LibTorch (~> 1.7)
-    - OHHTTPStubs/Swift
     - SyftProto (= 0.4.9)
   - SwiftLint (0.38.2)
   - SwiftProtobuf (1.8.0)
@@ -37,8 +19,7 @@ PODS:
 
 DEPENDENCIES:
   - Charts
-  - OpenMinedSwiftSyft (from `.`)
-  - OpenMinedSwiftSyft/Tests (from `.`)
+  - NimbleEdgeSwiftySyft (from `.`)
   - SwiftLint (~> 0.38.0)
 
 SPEC REPOS:
@@ -46,25 +27,23 @@ SPEC REPOS:
     - Charts
     - GoogleWebRTC
     - LibTorch
-    - OHHTTPStubs
     - SwiftLint
     - SwiftProtobuf
     - SyftProto
 
 EXTERNAL SOURCES:
-  OpenMinedSwiftSyft:
+  NimbleEdgeSwiftySyft:
     :path: "."
 
 SPEC CHECKSUMS:
   Charts: b1e3a1f5a1c9ba5394438ca3b91bd8c9076310af
   GoogleWebRTC: b39a78c4f5cc6b0323415b9233db03a2faa7b0f0
-  LibTorch: cabfa6ee8dfff68ec7bcf97f90322bfc1d7cd4ed
-  OHHTTPStubs: cb29d2a9d09a828ecb93349a2b0c64f99e0db89f
-  OpenMinedSwiftSyft: 27bc948103f748a29541b0be2c64a47290de2541
+  LibTorch: 76f0225df2cc2adb040f26f1a787f7a384ad32cb
+  NimbleEdgeSwiftySyft: 5c0210902eed8601aea7cf756fa23aa776b42916
   SwiftLint: 8f5d2f903e1c9bcbc832fd16771e80a263ac6cbb
   SwiftProtobuf: 2cbd9409689b7df170d82a92a33443c8e3e14a70
   SyftProto: da02767fd695d222748d6bdf78ff7ddbe7b1982f
 
-PODFILE CHECKSUM: ad6914eeb1414d2ea9b40618b50302224d89eacb
+PODFILE CHECKSUM: d4dd78ce8949a1cc82d0ce7d33fa5e6ff46dfb19
 
 COCOAPODS: 1.11.3
