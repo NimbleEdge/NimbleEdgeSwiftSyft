@@ -2,13 +2,15 @@ PODS:
   - Charts (3.6.0):
     - Charts/Core (= 3.6.0)
   - Charts/Core (3.6.0)
+  - DatadogSDK (1.11.1)
   - GoogleWebRTC (1.1.31999)
   - LibTorch (1.12.0):
     - LibTorch/Core (= 1.12.0)
   - LibTorch/Core (1.12.0):
     - LibTorch/Torch
   - LibTorch/Torch (1.12.0)
-  - NimbleEdgeSwiftySyft (0.0.2):
+  - NimbleEdgeSwiftySyft (0.0.3):
+    - DatadogSDK (= 1.11.1)
     - GoogleWebRTC (~> 1.1.0)
     - LibTorch (~> 1.7)
     - SyftProto (= 0.4.9)
@@ -25,6 +27,7 @@ DEPENDENCIES:
 SPEC REPOS:
   https://github.com/CocoaPods/Specs.git:
     - Charts
+    - DatadogSDK
     - GoogleWebRTC
     - LibTorch
     - SwiftLint
@@ -37,9 +40,10 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Charts: b1e3a1f5a1c9ba5394438ca3b91bd8c9076310af
+  DatadogSDK: ba0b08e235f938871691678efc4fb4032e7e27b2
   GoogleWebRTC: b39a78c4f5cc6b0323415b9233db03a2faa7b0f0
   LibTorch: 76f0225df2cc2adb040f26f1a787f7a384ad32cb
-  NimbleEdgeSwiftySyft: 5c0210902eed8601aea7cf756fa23aa776b42916
+  NimbleEdgeSwiftySyft: cfba607ef79162e3574c8867616f28cb80c533b8
   SwiftLint: 8f5d2f903e1c9bcbc832fd16771e80a263ac6cbb
   SwiftProtobuf: 2cbd9409689b7df170d82a92a33443c8e3e14a70
   SyftProto: da02767fd695d222748d6bdf78ff7ddbe7b1982f

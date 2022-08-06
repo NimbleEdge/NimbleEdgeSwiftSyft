@@ -60,6 +60,7 @@ Pod::Spec.new do |s|
   s.dependency 'LibTorch', '~> 1.7'
   s.dependency 'GoogleWebRTC', '~> 1.1.0'
   s.dependency 'SyftProto', '0.4.9'
+  s.dependency 'DatadogSDK', '1.11.1'
 
  # s.test_spec 'Tests' do |test_spec|
  #   test_spec.source_files = 'Tests/*.swift'
