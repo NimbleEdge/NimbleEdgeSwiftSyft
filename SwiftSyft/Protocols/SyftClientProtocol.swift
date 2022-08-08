@@ -11,7 +11,7 @@ import Foundation
 protocol SyftClientProtocol {
 
     /// - Parameter url: PyGrid URL
-    func newJob(modelName: String, version: String, inference: Bool) -> SyftJob
+    func newJob(modelName: String, version: String, inference: Bool, loggingClientToken: String) -> SyftJob
 }
 
 protocol SyftJobProtocol {
