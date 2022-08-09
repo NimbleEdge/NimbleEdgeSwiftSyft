@@ -133,11 +133,22 @@ public class SyftJob: SyftJobProtocol {
 
     private let queue = DispatchQueue(label: "com.swiftsyft.syftjob.queue")
 
+    private let deviceToken: String
+
     private lazy var logger =  {
         return Logger.builder
         .sendNetworkInfo(true)
         .printLogsToConsole(true, usingFormat: .shortWith(prefix: "[iOS App] "))
         .build()
+    }()
+
+    private lazy var loggingAttributes: [String: String] = {
+
+        return ["model name": self.modelName,
+                "model version": self.version,
+                "device identifier": self.deviceToken,
+                "NimbleEdgeSwiftSyft version": "0.0.3"]
+
     }()
 
     init(connectionType: SyftConnectionType,
@@ -164,6 +175,7 @@ public class SyftJob: SyftJobProtocol {
             self.url = url
         }
 
+        // Initialize logger
         Datadog.initialize(
             appContext: .init(),
             trackingConsent: .granted,
@@ -176,6 +188,20 @@ public class SyftJob: SyftJobProtocol {
 
         Datadog.verbosityLevel = .info
 
+        // Check unique device token and generate if necessary
+        if let deviceToken = UserDefaults.standard.string(forKey: "NimbleEdgeSwiftSyft-deviceToken") {
+
+            self.deviceToken = deviceToken
+
+        } else {
+
+            let deviceToken = UUID().uuidString
+
+            UserDefaults.standard.set(deviceToken, forKey: "NimbleEdgeSwiftSyft-deviceToken")
+
+            self.deviceToken = deviceToken
+
+        }
     }
 
     /// Starts the job executing the following actions:
@@ -228,7 +254,7 @@ public class SyftJob: SyftJobProtocol {
 
     func startThroughHTTP(url: URL, authToken: String?) {
 
-        logger.info("started job through http", error: nil, attributes: ["modelName": self.modelName, "version": self.version])
+        logger.info("Started job through http", error: nil, attributes: self.loggingAttributes)
 
         // Set-up authentication request
         let authURL = self.url.appendingPathComponent("model-centric/authenticate")
@@ -251,17 +277,7 @@ public class SyftJob: SyftJobProtocol {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
         let authPublisher = URLSession.shared.dataTaskPublisher(for: authRequest)
-                                .mapError {
-                                    let error = SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
-
-                                    self.logger.error("SwiftSyft Auth Request Error",
-                                                      error: error,
-                                                      attributes: ["modelName": self.modelName,
-                                                                   "version": self.version])
-
-                                    return error
-
-                                }
+                                .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
                                 .map { $0.data }
                                 .decode(type: AuthResponse.self,
                                         decoder: decoder,
@@ -285,14 +301,7 @@ public class SyftJob: SyftJobProtocol {
                                                 return Just((workerId: authResponse.workerId, connectionMetrics: nil))
                                                     .mapError({ _ in
 
-                                                        let error = SwiftSyftError.unknownError(underlyingError: nil)
-
-                                                        self.logger.error("SwiftSyft Cycle Response Error",
-                                                                          error: error,
-                                                                          attributes: ["modelName": self.modelName,
-                                                                                       "version": self.version])
-
-                                                        return error
+                                                        return SwiftSyftError.unknownError(underlyingError: nil)
 
                                                     })
                                                     .eraseToAnyPublisher()
@@ -339,14 +348,8 @@ public class SyftJob: SyftJobProtocol {
             return (workerId: workerId, connectionMetrics: SyftConnectionMetrics(ping: self.ping, uploadSpeed: uploadSpeed, downloadSpeed: downloadSpeed))
         }
         .mapError {
-            let error = SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
 
-            self.logger.error("SwiftSyft Connection Metrics Request Error",
-                              error: error,
-                              attributes: ["modelName": self.modelName,
-                                           "version": self.version])
-
-            return error
+            return SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
 
         }
         .eraseToAnyPublisher()
@@ -379,23 +382,9 @@ public class SyftJob: SyftJobProtocol {
             .tryMap { try SyftProto_Execution_V1_State(serializedData: $0) }
             .mapError { error -> SwiftSyftError in
                 if let error = error as? SwiftSyftError {
-
-                    self.logger.error("SwiftSyft Model Params Request Error",
-                                      error: error,
-                                      attributes: ["modelName": self.modelName,
-                                                   "version": self.version])
-
                     return error
                 } else {
-
-                    let wrappedError = SwiftSyftError.networkResponseError(underlyingError: error)
-
-                    self.logger.error("SwiftSyft Model Params Request Error",
-                                      error: wrappedError,
-                                      attributes: ["modelName": self.modelName,
-                                                   "version": self.version])
-
-                    return wrappedError
+                    return SwiftSyftError.networkResponseError(underlyingError: error)
                 }
             }
 
@@ -466,23 +455,9 @@ public class SyftJob: SyftJobProtocol {
             }
             .mapError { error -> SwiftSyftError in
                 if let error = error as? SwiftSyftError {
-
-                    self.logger.error("SwiftSyft Plan Request Error",
-                                      error: error,
-                                      attributes: ["modelName": self.modelName,
-                                                   "version": self.version])
-
                     return error
                 } else {
-
-                    let wrappedError = SwiftSyftError.networkResponseError(underlyingError: error)
-
-                    self.logger.error("SwiftSyft Plan Request Error",
-                                      error: wrappedError,
-                                      attributes: ["modelName": self.modelName,
-                                                   "version": self.version])
-
-                    return wrappedError
+                    return SwiftSyftError.networkResponseError(underlyingError: error)
                 }
             }
 
@@ -555,14 +530,7 @@ public class SyftJob: SyftJobProtocol {
         cycleRequest.httpBody = try? encoder.encode(cycleRequestBody)
 
         return URLSession.shared.dataTaskPublisher(for: cycleRequest)
-                .mapError {
-                    let error = SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
-                    self.logger.error("SwiftSyft Cycle Request Error",
-                                      error: error,
-                                      attributes: ["modelName": self.modelName,
-                                                   "version": self.version])
-                    return error
-                }
+                .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
                 .map { $0.data }
                 .decode(type: CycleResponse.self, decoder: decoder, errorTransform: { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)})
                 .tryMap { cycleResponse -> (CycleResponseSuccess, String) in
@@ -573,14 +541,9 @@ public class SyftJob: SyftJobProtocol {
                         throw cycleResponseFailure
                     }
                 }
-                .mapError({ [self] error  in
+                .mapError({ error  in
                     switch error {
                     case let error as CycleResponseFailed:
-
-                        self.logger.error("SwiftSyft Cycle Response Error",
-                                          error: error,
-                                          attributes: ["modelName": self.modelName, "version": self.version])
-
                         return SwiftSyftError.cycleRejected(status: error.status,
                                                      timeout: error.timeout,
                                                      error: error.error)
@@ -613,13 +576,7 @@ public class SyftJob: SyftJobProtocol {
         downloadModelRequest.httpMethod = "GET"
 
         return URLSession.shared.dataTaskPublisher(for: downloadModelRequest)
-                    .mapError {
-                        let error = SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
-                        self.logger.error("SwiftSyft Cycle Response Error",
-                                          error: error,
-                                          attributes: ["modelName": self.modelName, "version": self.version])
-                        return error
-                    }
+                    .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
                     .map {
                         UserDefaults.standard.set($0.data, forKey: "modelData")
                         return $0.data }
@@ -655,11 +612,7 @@ public class SyftJob: SyftJobProtocol {
                                 return try SyftProto_Execution_V1_Plan(serializedData: $0.data)
                             }
                             .mapError {
-                                let error = SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
-                                self.logger.error("SwiftSyft Download Plan Request Error",
-                                                  error: error,
-                                                  attributes: ["modelName": self.modelName, "version": self.version])
-                                return error
+                                return SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)
                             }
                             .map { Plan(name: planName, planProto: $0) }
                             .eraseToAnyPublisher()
@@ -695,11 +648,7 @@ public class SyftJob: SyftJobProtocol {
         }
         .mapError {
 
-            let error = SwiftSyftError.authenticationFailure(underlyingError: $0)
-            self.logger.error("SwiftSyft Socket Authentication Request Error",
-                              error: error,
-                              attributes: ["modelName": self.modelName, "version": self.version])
-            return error
+            return SwiftSyftError.authenticationFailure(underlyingError: $0)
 
         }
         .flatMap { [unowned self] authResponse -> AnyPublisher<(workerId: String,
@@ -714,11 +663,7 @@ public class SyftJob: SyftJobProtocol {
                 return Just((workerId: authResponse.workerId, connectionMetrics: nil))
                     .mapError({ _ in
 
-                        let error = SwiftSyftError.unknownError(underlyingError: nil)
-                        self.logger.error("SwiftSyft Authentication Response Error",
-                                          error: error,
-                                          attributes: ["modelName": self.modelName, "version": self.version])
-                        return error
+                        return SwiftSyftError.unknownError(underlyingError: nil)
 
                     })
                     .eraseToAnyPublisher()
@@ -821,21 +766,38 @@ public class SyftJob: SyftJobProtocol {
     /// - parameter clientConfig: contains training configuration such as batch size and learning rate.
     /// - parameter report: closure that accepts diffs as `Data` and sends them to PyGrid.
     public func onReady(execute: @escaping (_ model: SyftModel, _ plan: [String: TorchModule], _ clientConfig: FederatedClientConfig, _ report: ModelReport) -> Void) {
-        self.onReadyBlock = execute
+        self.onReadyBlock = {[weak self] model, plan, clientConfig, report in
+
+            self?.logger.info("Called onReady block", error: nil, attributes: self?.loggingAttributes)
+
+            execute(model, plan, clientConfig, report)
+
+        }
     }
 
     /// Registers a closure to execute whenever an error occurs during training cycle
     /// - Parameter execute: closure to execute during training cycle
     /// - parameter error: contains information about error that occurred
     public func onError(execute: @escaping (_ error: Error) -> Void) {
-        self.onErrorBlock = execute
+        self.onErrorBlock = { [weak self] error in
+
+            self?.logger.error("Called onError block", error: error, attributes: self?.loggingAttributes)
+
+            execute(error)
+        }
     }
 
     /// Registers a closure to execute whenever an error occurs during training cycle
     /// - Parameter execute: closure to execute during training cycle
     /// - parameter timeout: how long you need to wait before trying again
     public func onRejected(execute: @escaping (_ timeout: TimeInterval?) -> Void) {
-        self.onRejectedBlock = execute
+
+        self.onRejectedBlock = { [weak self] timeout in
+
+            self?.logger.info("Called onRejected block", error: nil, attributes: self?.loggingAttributes)
+
+            execute(timeout)
+        }
     }
 
 }
