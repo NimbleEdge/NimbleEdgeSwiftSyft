@@ -94,7 +94,7 @@ public class SyftClient: SyftClientProtocol {
                        modelName: modelName,
                        version: version,
                        authToken: self.authToken,
-                       inference: self.inference ?? false,
+                       inference: inference,
                        loggingClientToken: loggingClientToken)
     }
 }
@@ -214,6 +214,41 @@ public class SyftJob: SyftJobProtocol {
     ///   - chargeDetection: Specifies whether to check if device is charging before continuing job execution. Default is `true`.
     ///   - wifiDetection: Specifies whether to have wifi connection before continuing job execution. Default is `true`.
     public func start(chargeDetection: Bool = true, wifiDetection: Bool = true) {
+
+        // Check if cached model exists
+        if self.inference,
+           let clientConfigData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-clientConfig") as? Data,
+           let modelParamsData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-modelParams") as? Data,
+           let planDictionaryURLString = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-planDictionary") as? [String: String] {
+
+            self.logger.info("Loading cached models", error: nil, attributes: ["test": "value"])
+
+
+            let decoder = JSONDecoder()
+
+            if let clientConfig = try? decoder.decode(FederatedClientConfig.self, from: clientConfigData),
+               let modelParams = try? SyftProto_Execution_V1_State(serializedData: modelParamsData) {
+
+                let planDictionary = planDictionaryURLString.compactMapValues({ filename -> URL? in
+                    let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent(filename)
+                    return url
+                }).compactMapValues { TorchModule.loadTorchscriptModel($0.path) }
+
+                if !planDictionary.isEmpty {
+
+                    let model = SyftModel(modelState: modelParams)
+
+                    queue.async {
+                        self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
+                    }
+
+                    return
+
+                }
+
+            }
+
+        }
 
         // Continue if battery charging check is false or if true, check that the device is indeed charging
         if chargeDetection && !self.batteryChargeCheck() {
@@ -362,6 +397,14 @@ public class SyftJob: SyftJobProtocol {
         let clientConfigPublisher = cycleResponsePublisher
             .map { (cycleResponse) -> FederatedClientConfig in
                 let (cycleResponseSuccess, _) = cycleResponse
+
+                // Cache federated client config in user defaults
+                let encoder = JSONEncoder()
+
+                if let encodedClientConfig = try? encoder.encode(cycleResponseSuccess.clientConfig) {
+                    UserDefaults.standard.set(encodedClientConfig, forKey: "\(self.modelName)-\(self.version)-clientConfig")
+                }
+
                 return cycleResponseSuccess.clientConfig
             }
 
@@ -369,17 +412,14 @@ public class SyftJob: SyftJobProtocol {
         let modelParamPublisher = cycleResponsePublisher
             .flatMap { (cycleResponse) -> AnyPublisher<Data, SwiftSyftError> in
                 let (cycleResponseSuccess, workerId) = cycleResponse
-                if self.inference {
-                    if let data = UserDefaults.standard.value(forKey: "modelData") as? Data {
-                        return Just(data).setFailureType(to: SwiftSyftError.self).eraseToAnyPublisher()
-                    } else {
-                        return self.downloadModel(forWorkerId: workerId, modelId: cycleResponseSuccess.modelId, requestKey: cycleResponseSuccess.requestKey)
-                    }
-                } else {
-                    return self.downloadModel(forWorkerId: workerId, modelId: cycleResponseSuccess.modelId, requestKey: cycleResponseSuccess.requestKey)
-                }
+                return self.downloadModel(forWorkerId: workerId, modelId: cycleResponseSuccess.modelId, requestKey: cycleResponseSuccess.requestKey)
             }
-            .tryMap { try SyftProto_Execution_V1_State(serializedData: $0) }
+            .tryMap { responseData -> SyftProto_Execution_V1_State in
+
+                //Cache model params
+                UserDefaults.standard.set(responseData, forKey: "\(self.modelName)-\(self.version)-modelParams")
+                return try SyftProto_Execution_V1_State(serializedData: responseData)
+            }
             .mapError { error -> SwiftSyftError in
                 if let error = error as? SwiftSyftError {
                     return error
@@ -397,23 +437,8 @@ public class SyftJob: SyftJobProtocol {
                 let planDownloadPublishers: [AnyPublisher<Plan, SwiftSyftError>] =  cycleResponseSuccess.plans.enumerated().map { (_, dictElement) -> AnyPublisher<Plan, SwiftSyftError> in
 
                     let (planName, planId) = dictElement
-                    if self.inference {
-                        if let value = UserDefaults.standard.value(forKey: self.modelName) as? Data {
-                            print("inference is enable: \(self.inference)")
-                            do {
-                                let syftProtoExecutionPlan = try SyftProto_Execution_V1_Plan(serializedData: value)
-                                let plan = Plan(name: planName, planProto: syftProtoExecutionPlan)
-                                return Just(plan).setFailureType(to: SwiftSyftError.self).eraseToAnyPublisher()
-                            } catch {
-                                print("giving problem in taking it out")
-                            }
-                            return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
-                        } else {
-                            return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
-                        }
-                    } else {
-                        return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
-                    }
+
+                    return self.downloadPlan(forWorkerId: workerId, planName: planName, planId: planId, requestKey: cycleResponseSuccess.requestKey)
                 }
 
                 return Publishers.ZipMany(planDownloadPublishers).eraseToAnyPublisher()
@@ -438,7 +463,14 @@ public class SyftJob: SyftJobProtocol {
 
                 }
 
-                return Dictionary(uniqueKeysWithValues: planArray)
+                // Cache plans in order to reload on inference
+                let planDictionary = Dictionary(uniqueKeysWithValues: planArray)
+                let planToCache = planDictionary.mapValues { url -> String in
+                    return url.lastPathComponent
+                }
+                UserDefaults.standard.set(planToCache, forKey: "\(self.modelName)-\(self.version)-planDictionary")
+
+                return planDictionary
 
             }
             .tryMap { planDictionary -> [String: TorchModule] in
