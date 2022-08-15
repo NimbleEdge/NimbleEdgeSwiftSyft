@@ -151,6 +151,12 @@ public class SyftJob: SyftJobProtocol {
 
     }()
 
+    private lazy var requestQueue: OperationQueue = {
+            let queue = OperationQueue()
+            queue.maxConcurrentOperationCount = 1
+            return queue
+        }()
+
     init(connectionType: SyftConnectionType,
          modelName: String,
          version: String,
@@ -214,6 +220,8 @@ public class SyftJob: SyftJobProtocol {
     ///   - chargeDetection: Specifies whether to check if device is charging before continuing job execution. Default is `true`.
     ///   - wifiDetection: Specifies whether to have wifi connection before continuing job execution. Default is `true`.
     public func start(chargeDetection: Bool = true, wifiDetection: Bool = true) {
+
+        UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
 
         // Check if cached model exists
         if self.inference,
@@ -493,8 +501,9 @@ public class SyftJob: SyftJobProtocol {
                 }
             }
 
-        clientConfigPublisher.zip(planPublisher, modelParamPublisher)
-            .sink(receiveCompletion: { [unowned self] completion in
+        let connectable = Publishers.MakeConnectable(upstream: clientConfigPublisher.zip(planPublisher, modelParamPublisher).eraseToAnyPublisher())
+
+        connectable.sink(receiveCompletion: { [unowned self] completion in
                 switch completion {
                 case .finished:
                     break
@@ -537,6 +546,10 @@ public class SyftJob: SyftJobProtocol {
                 }
 
             }).store(in: &disposeBag)
+
+
+        let connectableOperation = JobOperation(connectable: connectable)
+        self.requestQueue.addOperation(connectableOperation)
 
     }
 
