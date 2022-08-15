@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="17156" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="6q4-mS-6Dq">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19529" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="cZ9-6g-mB4">
     <device id="retina4_7" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17125"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19519"/>
         <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -53,7 +53,7 @@
                                         <nil key="highlightedColor"/>
                                     </label>
                                     <button opaque="NO" contentMode="scaleAspectFit" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="clip" translatesAutoresizingMaskIntoConstraints="NO" id="GPR-Jh-R3g">
-                                        <rect key="frame" x="101" y="291" width="173" height="30"/>
+                                        <rect key="frame" x="100.5" y="291" width="174" height="30"/>
                                         <state key="normal" title="Connect to PyGrid server"/>
                                         <connections>
                                             <action selector="connectPressed:" destination="6q4-mS-6Dq" eventType="touchUpInside" id="f4U-9j-xdR"/>
@@ -117,6 +117,48 @@
                 <placeholder placeholderIdentifier="IBFirstResponder" id="1t4-YL-rK1" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="136.80000000000001" y="133.5832083958021"/>
+        </scene>
+        <!--Load Test View Controller-->
+        <scene sceneID="qh5-a2-zaF">
+            <objects>
+                <viewController id="cZ9-6g-mB4" customClass="LoadTestViewController" customModule="SwiftSyft_Example" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="imL-gE-cGI"/>
+                        <viewControllerLayoutGuide type="bottom" id="xnX-bn-2R4"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="k1L-82-WIC">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="E7t-6c-saO">
+                                <rect key="frame" x="126.5" y="318" width="122" height="31"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Start Load Test"/>
+                                <connections>
+                                    <action selector="tappedStartTest:" destination="cZ9-6g-mB4" eventType="touchUpInside" id="NF0-jh-1Q6"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="BuC-3p-Waw">
+                                <rect key="frame" x="121.5" y="406" width="132" height="31"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Check Load Test"/>
+                                <connections>
+                                    <action selector="tappedCheck:" destination="cZ9-6g-mB4" eventType="touchUpInside" id="UCV-92-0A1"/>
+                                </connections>
+                            </button>
+                        </subviews>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="BuC-3p-Waw" firstAttribute="centerX" secondItem="k1L-82-WIC" secondAttribute="centerX" id="AIe-MY-xUQ"/>
+                            <constraint firstItem="BuC-3p-Waw" firstAttribute="top" secondItem="E7t-6c-saO" secondAttribute="bottom" constant="57" id="Hqs-Ay-LL3"/>
+                            <constraint firstItem="E7t-6c-saO" firstAttribute="centerY" secondItem="k1L-82-WIC" secondAttribute="centerY" id="Xgy-Tt-xqz"/>
+                            <constraint firstItem="E7t-6c-saO" firstAttribute="centerX" secondItem="k1L-82-WIC" secondAttribute="centerX" id="Zu0-IT-fZp"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="uKz-na-97f" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="137" y="864"/>
         </scene>
         <!--Loss Chart View Controller-->
         <scene sceneID="EZ9-hA-5NS">
