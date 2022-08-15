@@ -221,8 +221,6 @@ public class SyftJob: SyftJobProtocol {
     ///   - wifiDetection: Specifies whether to have wifi connection before continuing job execution. Default is `true`.
     public func start(chargeDetection: Bool = true, wifiDetection: Bool = true) {
 
-        UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
-
         // Check if cached model exists
         if self.inference,
            let clientConfigData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-clientConfig") as? Data,
