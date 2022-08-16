@@ -264,7 +264,9 @@ public class SyftJob: SyftJobProtocol {
 
                 if !planDictionary.isEmpty {
 
-                    let model = SyftModel(modelState: modelParams)
+                    let model = SyftModel(modelState: modelParams,
+                                          modelName: self.modelName,
+                                          version: self.version)
 
                     queue.async {
                         self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
@@ -445,7 +447,13 @@ public class SyftJob: SyftJobProtocol {
             .tryMap { responseData -> SyftProto_Execution_V1_State in
 
                 //Cache model params
-                UserDefaults.standard.set(responseData, forKey: "\(self.modelName)-\(self.version)-modelParams")
+
+                if UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-modelParams") == nil {
+
+                    UserDefaults.standard.set(responseData, forKey: "\(self.modelName)-\(self.version)-modelParams")
+
+                }
+
                 return try SyftProto_Execution_V1_State(serializedData: responseData)
             }
             .mapError { error -> SwiftSyftError in
@@ -557,7 +565,9 @@ public class SyftJob: SyftJobProtocol {
 //                let syftPlan = SyftPlan(trainingModule: trainingModule, modelState: modelParam)
 //                self?.onReadyBlock(planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
 
-                let model = SyftModel(modelState: modelParam)
+                let model = SyftModel(modelState: modelParam,
+                                      modelName: self.modelName,
+                                      version: self.version)
 
                 queue.async {
 

@@ -26,10 +26,10 @@ class LoadTestViewController: UIViewController {
         // Create a client with a PyGrid server URL
 //        if let syftClient = SyftClient(url: URL(string: "ws://127.0.0.1:5000")!, authToken: authToken, inference: false) {
 
-        if let syftClient = SyftClient(url: URL(string: "http://43.204.165.114:5004")!, authToken: authToken, deviceToken: UUID().uuidString, inference: false) {
+        if let syftClient = SyftClient(url: URL(string: "http://43.204.165.114:5004")!, authToken: authToken, deviceToken: UUID().uuidString, inference: true) {
 
             self.syftClient = syftClient
-            self.job = self.syftClient?.newJob(modelName: "oyo_model", version: "1.0.0", inference: false, loggingClientToken: "pub7eb28d4902814586c6e56e0b67a58f9c")
+            self.job = self.syftClient?.newJob(modelName: "oyo_model", version: "1.0.0", inference: true, loggingClientToken: "pub7eb28d4902814586c6e56e0b67a58f9c")
 
             self.job?.onReady(execute: { [self] model, plan, clientConfig, report in
 
@@ -37,6 +37,10 @@ class LoadTestViewController: UIViewController {
                 self.queue.async {
                     self.successCount += 1
                 }
+
+                model.paramTensorsForTraining = model.originalParamTensors
+
+                model.cacheUpdatedParams()
 
             })
 
@@ -54,7 +58,7 @@ class LoadTestViewController: UIViewController {
 
     @IBAction func tappedStartTest(_ sender: Any) {
 
-        for _ in 1...100 {
+        for _ in 1...2 {
 
             self.job?.start(chargeDetection: false, wifiDetection: false)
 
