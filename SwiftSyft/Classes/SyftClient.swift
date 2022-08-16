@@ -151,7 +151,7 @@ public class SyftJob: SyftJobProtocol {
     private lazy var logger =  {
         return Logger.builder
         .sendNetworkInfo(true)
-        .printLogsToConsole(true, usingFormat: .shortWith(prefix: "[iOS App] "))
+//        .printLogsToConsole(true, usingFormat: .shortWith(prefix: "[iOS App] "))
         .build()
     }()
 
@@ -210,7 +210,7 @@ public class SyftJob: SyftJobProtocol {
                 .build()
         )
 
-        Datadog.verbosityLevel = .info
+//        Datadog.verbosityLevel = .info
 
         // Check if user passed a device token and use that as a device token to track
         if let deviceIdentifier = deviceToken {
