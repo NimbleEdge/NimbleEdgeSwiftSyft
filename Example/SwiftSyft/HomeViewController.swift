@@ -93,7 +93,7 @@ class HomeViewController: UIViewController, UITextViewDelegate {
             self.syftJob = syftClient.newJob(modelName: "mnist",
                                              version: "1.0",
                                              inference: true,
-                                             loggingClientToken: "pub7eb28d4902814586c6e56e0b67a58f9c")
+                                             loggingClientToken: "pubfe47ad8f1c5a4f21e498b46f87c157ac")
 
             // This function is called when SwiftSyft has downloaded the plans and model parameters from PyGrid
             // You are ready to train your model on your data
