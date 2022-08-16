@@ -49,24 +49,35 @@ public class SyftClient: SyftClientProtocol {
     private let connectionType: SyftConnectionType
     private var authToken: String?
     var inference: Bool
+    private let deviceToken: String?
+    private let session: URLSession
 
-    init?(url: URL, connectionType: SyftConnectionType, authToken: String? = nil, signallingClient: SignallingClient? = nil, inference: Bool) {
+    init?(url: URL, connectionType: SyftConnectionType, authToken: String? = nil, signallingClient: SignallingClient? = nil, inference: Bool, deviceToken: String? = nil, requestTimeOut: TimeInterval? = nil) {
         self.signallingClient = signallingClient
         self.url = url
         self.authToken = authToken
         self.connectionType = connectionType
         self.inference = inference
+        self.deviceToken = deviceToken
+
+        if let requestTimeOut = requestTimeOut {
+            let sessionConfiguration = URLSessionConfiguration.default
+            sessionConfiguration.timeoutIntervalForRequest = requestTimeOut
+            self.session = URLSession(configuration: sessionConfiguration)
+        } else {
+            self.session = URLSession.shared
+        }
     }
 
     /// Initializes as `SyftClient` with a PyGrid server URL and an authentication token (if needed)
     /// - Parameters:
     ///   - url: Full URL to a PyGrid server (`ws`(websocket) and `http` protocols suppported)
     ///   - authToken: PyGrid authentication token
-    convenience public init?(url: URL, authToken: String? = nil, inference: Bool) {
+    convenience public init?(url: URL, authToken: String? = nil, deviceToken: String? = nil, requestTimeout: TimeInterval? = nil, inference: Bool) {
 
         if url.scheme == "http" || url.scheme == "https"{
 
-            self.init(url: url, connectionType: .http(url), authToken: authToken, inference: inference)
+            self.init(url: url, connectionType: .http(url), authToken: authToken, inference: inference, deviceToken: deviceToken, requestTimeOut: requestTimeout)
 
         } else if url.scheme == "ws" || url.scheme == "wss"{
 
@@ -75,7 +86,7 @@ public class SyftClient: SyftClientProtocol {
             let connectionType: SyftConnectionType = .socket(url: url,
                                                              sendMessageSubject: signallingClient.sendMessageSubject, receiveMessagePublisher: signallingClient.incomingMessagePublisher)
 //            self.init(url: url, connectionType: connectionType, signallingClient: signallingClient)
-            self.init(url: url, connectionType: connectionType, authToken: authToken, signallingClient: signallingClient, inference: inference)
+            self.init(url: url, connectionType: connectionType, authToken: authToken, signallingClient: signallingClient, inference: inference, deviceToken: deviceToken, requestTimeOut: requestTimeout)
 
         } else {
             return nil
@@ -95,7 +106,9 @@ public class SyftClient: SyftClientProtocol {
                        version: version,
                        authToken: self.authToken,
                        inference: inference,
-                       loggingClientToken: loggingClientToken)
+                       loggingClientToken: loggingClientToken,
+                       deviceToken: deviceToken,
+                       session: self.session)
     }
 }
 
@@ -157,6 +170,8 @@ public class SyftJob: SyftJobProtocol {
             return queue
         }()
 
+    private let session: URLSession
+
     init(connectionType: SyftConnectionType,
          modelName: String,
          version: String,
@@ -164,6 +179,7 @@ public class SyftJob: SyftJobProtocol {
          inference: Bool,
          loggingClientToken: String,
          deviceToken: String? = nil,
+         session: URLSession,
          batteryChargeCheck: @escaping () -> Bool = SyftJob.isBatteryCharging,
          wifiCheck: @escaping (NWPathMonitor, Bool) -> Future<Bool, Never> = SyftJob.validateWifiNetwork) {
 
@@ -174,6 +190,7 @@ public class SyftJob: SyftJobProtocol {
         self.batteryChargeCheck = batteryChargeCheck
         self.wifiCheck = wifiCheck
         self.inference = inference
+        self.session = session
 
         switch connectionType {
         case let .http(url):
@@ -322,7 +339,7 @@ public class SyftJob: SyftJobProtocol {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-        let authPublisher = URLSession.shared.dataTaskPublisher(for: authRequest)
+        let authPublisher = self.session.dataTaskPublisher(for: authRequest)
                                 .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
                                 .map { $0.data }
                                 .decode(type: AuthResponse.self,
@@ -550,7 +567,6 @@ public class SyftJob: SyftJobProtocol {
 
             }).store(in: &disposeBag)
 
-
         let connectableOperation = JobOperation(connectable: connectable)
         self.requestQueue.addOperation(connectableOperation)
 
@@ -577,7 +593,7 @@ public class SyftJob: SyftJobProtocol {
 
         cycleRequest.httpBody = try? encoder.encode(cycleRequestBody)
 
-        return URLSession.shared.dataTaskPublisher(for: cycleRequest)
+        return self.session.dataTaskPublisher(for: cycleRequest)
                 .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
                 .map { $0.data }
                 .decode(type: CycleResponse.self, decoder: decoder, errorTransform: { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)})
@@ -623,7 +639,7 @@ public class SyftJob: SyftJobProtocol {
         var downloadModelRequest = URLRequest(url: downloadModelURL)
         downloadModelRequest.httpMethod = "GET"
 
-        return URLSession.shared.dataTaskPublisher(for: downloadModelRequest)
+        return self.session.dataTaskPublisher(for: downloadModelRequest)
                     .mapError { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil) }
                     .map {
                         UserDefaults.standard.set($0.data, forKey: "modelData")
@@ -654,7 +670,7 @@ public class SyftJob: SyftJobProtocol {
         var downloadPlanRequest = URLRequest(url: downloadModelURL)
         downloadPlanRequest.httpMethod = "GET"
 
-        return URLSession.shared.dataTaskPublisher(for: downloadPlanRequest)
+        return self.session.dataTaskPublisher(for: downloadPlanRequest)
                             .tryMap {
                                 UserDefaults.standard.set($0.data, forKey: self.modelName)
                                 return try SyftProto_Execution_V1_Plan(serializedData: $0.data)
@@ -794,7 +810,7 @@ public class SyftJob: SyftJobProtocol {
 
             reportRequest.httpBody = try? jsonEncoder.encode(modelReportBody)
 
-            URLSession.shared.dataTask(with: reportRequest) { (responseData, _, _) in
+            self.session.dataTask(with: reportRequest) { (responseData, _, _) in
                 if let responseData = responseData {
                     debugPrint("Model report response: \(String(bytes: responseData, encoding: .utf8)!)")
                 }
