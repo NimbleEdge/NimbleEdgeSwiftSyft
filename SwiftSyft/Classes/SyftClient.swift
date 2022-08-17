@@ -248,7 +248,7 @@ public class SyftJob: SyftJobProtocol {
         if self.inference,
            let clientConfigData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-clientConfig") as? Data,
            let modelParamsData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-modelParams") as? Data,
-           let planDictionaryURLString = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-planDictionary") as? [String: String] {
+           let planDictionaryURLString = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-inferencePlanDictionary") as? [String: String] {
 
             self.logger.info("Loading cached models", error: nil, attributes: ["test": "value"])
 
@@ -499,12 +499,17 @@ public class SyftJob: SyftJobProtocol {
 
                 }
 
-                // Cache plans in order to reload on inference
                 let planDictionary = Dictionary(uniqueKeysWithValues: planArray)
-                let planToCache = planDictionary.mapValues { url -> String in
-                    return url.lastPathComponent
+
+                // Cache plans in order to reload on inference
+                if self.inference {
+
+                    let planToCache = planDictionary.mapValues { url -> String in
+                        return url.lastPathComponent
+                    }
+                    UserDefaults.standard.set(planToCache, forKey: "\(self.modelName)-\(self.version)-inferencePlanDictionary")
+
                 }
-                UserDefaults.standard.set(planToCache, forKey: "\(self.modelName)-\(self.version)-planDictionary")
 
                 return planDictionary
 
