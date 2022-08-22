@@ -200,15 +200,19 @@ public class SyftJob: SyftJobProtocol {
         }
 
         // Initialize logger
-        Datadog.initialize(
-            appContext: .init(),
-            trackingConsent: .granted,
-            configuration: Datadog.Configuration
-                .builderUsing(clientToken: loggingClientToken, environment: "prod")
-                .set(serviceName: "NimbleSwiftSyft")
-                .set(endpoint: .us5)
-                .build()
-        )
+        DispatchQueue.main.async {
+
+            Datadog.initialize(
+                appContext: .init(),
+                trackingConsent: .granted,
+                configuration: Datadog.Configuration
+                    .builderUsing(clientToken: loggingClientToken, environment: "prod")
+                    .set(serviceName: "NimbleSwiftSyft")
+                    .set(endpoint: .us5)
+                    .build()
+            )
+
+        }
 
 //        Datadog.verbosityLevel = .info
 
