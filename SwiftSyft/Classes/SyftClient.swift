@@ -99,7 +99,7 @@ public class SyftClient: SyftClientProtocol {
     ///   - modelName: Model name as it is stored in the PyGrid server you are connecting to
     ///   - version: Version of the model (ex. 1.0)
     /// - Returns: `SyftJob`
-    public func newJob(modelName: String, version: String, inference: Bool, loggingClientToken: String) -> SyftJob {
+    public func newJob(modelName: String, version: String, inference: Bool, inferenceCacheTTL: TimeInterval, loggingClientToken: String) -> SyftJob {
 
         return SyftJob(connectionType: self.connectionType,
                        modelName: modelName,
@@ -108,7 +108,8 @@ public class SyftClient: SyftClientProtocol {
                        inference: inference,
                        loggingClientToken: loggingClientToken,
                        deviceToken: deviceToken,
-                       session: self.session)
+                       session: self.session,
+                       inferenceCacheTTL: inferenceCacheTTL)
     }
 }
 
@@ -171,6 +172,7 @@ public class SyftJob: SyftJobProtocol {
         }()
 
     private let session: URLSession
+    private let inferenceCacheTTL: TimeInterval
 
     init(connectionType: SyftConnectionType,
          modelName: String,
@@ -180,6 +182,7 @@ public class SyftJob: SyftJobProtocol {
          loggingClientToken: String,
          deviceToken: String? = nil,
          session: URLSession,
+         inferenceCacheTTL: TimeInterval,
          batteryChargeCheck: @escaping () -> Bool = SyftJob.isBatteryCharging,
          wifiCheck: @escaping (NWPathMonitor, Bool) -> Future<Bool, Never> = SyftJob.validateWifiNetwork) {
 
@@ -191,6 +194,7 @@ public class SyftJob: SyftJobProtocol {
         self.wifiCheck = wifiCheck
         self.inference = inference
         self.session = session
+        self.inferenceCacheTTL = inferenceCacheTTL
 
         switch connectionType {
         case let .http(url):
@@ -248,8 +252,10 @@ public class SyftJob: SyftJobProtocol {
     ///   - wifiDetection: Specifies whether to have wifi connection before continuing job execution. Default is `true`.
     public func start(chargeDetection: Bool = true, wifiDetection: Bool = true) {
 
-        // Check if cached model exists
+        // Check if cached model exists and is valid
         if self.inference,
+           let cacheLastUpdate = UserDefaults.standard.object(forKey: "inferenceCache-LastUpdate") as? TimeInterval,
+           Date().timeIntervalSince1970 - cacheLastUpdate < self.inferenceCacheTTL,
            let clientConfigData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-clientConfig") as? Data,
            let modelParamsData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-modelParams") as? Data,
            let planDictionaryURLString = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-inferencePlanDictionary") as? [String: String] {
@@ -432,11 +438,13 @@ public class SyftJob: SyftJobProtocol {
             .map { (cycleResponse) -> FederatedClientConfig in
                 let (cycleResponseSuccess, _) = cycleResponse
 
-                // Cache federated client config in user defaults
-                let encoder = JSONEncoder()
+                if self.inference {
+                    // Cache federated client config in user defaults
+                    let encoder = JSONEncoder()
 
-                if let encodedClientConfig = try? encoder.encode(cycleResponseSuccess.clientConfig) {
-                    UserDefaults.standard.set(encodedClientConfig, forKey: "\(self.modelName)-\(self.version)-clientConfig")
+                    if let encodedClientConfig = try? encoder.encode(cycleResponseSuccess.clientConfig) {
+                        UserDefaults.standard.set(encodedClientConfig, forKey: "\(self.modelName)-\(self.version)-clientConfig")
+                    }
                 }
 
                 return cycleResponseSuccess.clientConfig
@@ -452,7 +460,7 @@ public class SyftJob: SyftJobProtocol {
 
                 //Cache model params
 
-                if UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-modelParams") == nil {
+                if self.inference {
 
                     UserDefaults.standard.set(responseData, forKey: "\(self.modelName)-\(self.version)-modelParams")
 
@@ -579,7 +587,9 @@ public class SyftJob: SyftJobProtocol {
                                       version: self.version)
 
                 queue.async {
-
+                    if self.inference {
+                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "inferenceCache-LastUpdate")
+                    }
                     self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
 
                 }
