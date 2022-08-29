@@ -146,13 +146,23 @@
                                     <action selector="tappedCheck:" destination="cZ9-6g-mB4" eventType="touchUpInside" id="UCV-92-0A1"/>
                                 </connections>
                             </button>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hS6-sc-eGt">
+                                <rect key="frame" x="28" y="498" width="319" height="20.5"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="BuC-3p-Waw" firstAttribute="centerX" secondItem="k1L-82-WIC" secondAttribute="centerX" id="AIe-MY-xUQ"/>
+                            <constraint firstItem="hS6-sc-eGt" firstAttribute="leading" secondItem="k1L-82-WIC" secondAttribute="leadingMargin" constant="12" id="Gbh-TW-h42"/>
                             <constraint firstItem="BuC-3p-Waw" firstAttribute="top" secondItem="E7t-6c-saO" secondAttribute="bottom" constant="57" id="Hqs-Ay-LL3"/>
+                            <constraint firstItem="hS6-sc-eGt" firstAttribute="centerX" secondItem="k1L-82-WIC" secondAttribute="centerX" id="KOk-yF-HGY"/>
+                            <constraint firstItem="hS6-sc-eGt" firstAttribute="top" secondItem="BuC-3p-Waw" secondAttribute="bottom" constant="61" id="OzP-jC-QWF"/>
                             <constraint firstItem="E7t-6c-saO" firstAttribute="centerY" secondItem="k1L-82-WIC" secondAttribute="centerY" id="Xgy-Tt-xqz"/>
                             <constraint firstItem="E7t-6c-saO" firstAttribute="centerX" secondItem="k1L-82-WIC" secondAttribute="centerX" id="Zu0-IT-fZp"/>
+                            <constraint firstAttribute="trailingMargin" secondItem="hS6-sc-eGt" secondAttribute="trailing" constant="12" id="fXg-ct-bL6"/>
                         </constraints>
                     </view>
                 </viewController>

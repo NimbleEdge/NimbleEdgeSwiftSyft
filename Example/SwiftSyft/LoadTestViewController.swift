@@ -26,10 +26,10 @@ class LoadTestViewController: UIViewController {
         // Create a client with a PyGrid server URL
 //        if let syftClient = SyftClient(url: URL(string: "ws://127.0.0.1:5000")!, authToken: authToken, inference: false) {
 
-        if let syftClient = SyftClient(url: URL(string: "http://43.204.165.114:5004")!, authToken: authToken, deviceToken: UUID().uuidString, inference: true) {
+        if let syftClient = SyftClient(url: URL(string: "http://oyopoc.nimbleedgehq.ai:5005")!, authToken: authToken, deviceToken: UUID().uuidString, inference: false) {
 
             self.syftClient = syftClient
-            self.job = self.syftClient?.newJob(modelName: "oyo_model", version: "1.0.0", inference: true, loggingClientToken: "pub7eb28d4902814586c6e56e0b67a58f9c")
+            self.job = self.syftClient?.newJob(modelName: "oyo_model", version: "1.0.0", inference: false, inferenceCacheTTL: 60*60*24, loggingClientToken: "pubfe47ad8f1c5a4f21e498b46f87c157ac")
 
             self.job?.onReady(execute: { [self] model, plan, clientConfig, report in
 
@@ -40,7 +40,15 @@ class LoadTestViewController: UIViewController {
 
                 model.paramTensorsForTraining = model.originalParamTensors
 
-                model.cacheUpdatedParams()
+//                model.cacheUpdatedParams()
+
+                // Generate diff data (subtract original model params from updated params) and report the final diffs as
+                guard let diffStateData = model.generateDiffData() else {
+                    return
+                }
+
+                // Submit model params diff to server
+                report(diffStateData)
 
             })
 
@@ -58,7 +66,7 @@ class LoadTestViewController: UIViewController {
 
     @IBAction func tappedStartTest(_ sender: Any) {
 
-        for _ in 1...2 {
+        for _ in 1...500 {
 
             self.job?.start(chargeDetection: false, wifiDetection: false)
 
