@@ -212,7 +212,7 @@ public class SyftJob: SyftJobProtocol {
                 configuration: Datadog.Configuration
                     .builderUsing(clientToken: loggingClientToken, environment: "prod")
                     .set(serviceName: "NimbleSwiftSyft")
-                    .set(endpoint: .us5)
+                    .set(endpoint: .us1)
                     .build()
             )
 
@@ -260,7 +260,7 @@ public class SyftJob: SyftJobProtocol {
            let modelParamsData = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-modelParams") as? Data,
            let planDictionaryURLString = UserDefaults.standard.object(forKey: "\(self.modelName)-\(self.version)-inferencePlanDictionary") as? [String: String] {
 
-            self.logger.info("Loading cached models", error: nil, attributes: ["test": "value"])
+            self.logger.info("Loading cached models", error: nil, attributes: self.loggingAttributes)
 
             let decoder = JSONDecoder()
 

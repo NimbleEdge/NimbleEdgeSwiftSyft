@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
 
   s.name         = "NimbleEdgeSwiftySyft"
   s.module_name      = 'SwiftSyft'
-  s.version          = '0.0.8'
+  s.version          = '0.0.9'
   s.summary          = 'The official Syft worker for iOS, built in Swift.'
 
 # This description is used to generate tags and improve search results.
