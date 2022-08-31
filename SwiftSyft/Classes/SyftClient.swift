@@ -5,6 +5,8 @@ import Network
 import Datadog
 
 // swiftlint:disable type_body_length
+// swiftlint:disable file_length
+// swiftlint:disable cyclomatic_complexity
 
 enum SyftConnectionType {
     case http(URL)
@@ -278,8 +280,13 @@ public class SyftJob: SyftJobProtocol {
                                           modelName: self.modelName,
                                           version: self.version)
 
-                    queue.async {
-                        self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
+                    self.queue.async { [weak self] in
+
+                        guard let strongSelf = self else {
+                            return
+                        }
+
+                        strongSelf.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
                     }
 
                     return
@@ -293,8 +300,13 @@ public class SyftJob: SyftJobProtocol {
         // Continue if battery charging check is false or if true, check that the device is indeed charging
         if chargeDetection && !self.batteryChargeCheck() {
             let error = SwiftSyftError.batteryConstraintsFailure
-            queue.async {
-                self.onErrorBlock(error)
+            self.queue.async { [weak self] in
+
+                guard let strongSelf = self else {
+                    return
+                }
+
+                strongSelf.onErrorBlock(error)
             }
             return
         }
@@ -318,8 +330,13 @@ public class SyftJob: SyftJobProtocol {
 
             } else {
 
-                self.queue.async {
-                    self.onErrorBlock(SwiftSyftError.networkConstraintsFailure)
+                self.queue.async { [weak self] in
+
+                    guard let strongSelf = self else {
+                        return
+                    }
+
+                    strongSelf.onErrorBlock(SwiftSyftError.networkConstraintsFailure)
                 }
 
             }
@@ -358,18 +375,33 @@ public class SyftJob: SyftJobProtocol {
                                         decoder: decoder,
                                         errorTransform: { SwiftSyftError.networkError(underlyingError: $0, urlResponse: nil)})
 //                                .decode(type: AuthResponse.self, decoder: decoder)
-                                .handleEvents(receiveOutput: { [unowned self] authResponse in
-                                    self.workerId = authResponse.workerId
+                                .handleEvents(receiveOutput: { [weak self] authResponse in
+
+                                    guard let strongSelf = self else {
+                                        return
+                                    }
+
+                                    strongSelf.workerId = authResponse.workerId
                                 })
                                 .eraseToAnyPublisher()
 
         // Auth response -> Get Ping/Downoad/Upload Speed -> Cycle Request
         let cycleResponsePublisher = authPublisher
-                                        .flatMap { [unowned self] authResponse -> AnyPublisher<(workerId: String, connectionMetrics: SyftConnectionMetrics?), SwiftSyftError> in
+                                        .flatMap { [weak self] authResponse -> AnyPublisher<(workerId: String, connectionMetrics: SyftConnectionMetrics?), SwiftSyftError> in
+
+                                            guard let strongSelf = self else {
+                                                return Just((workerId: authResponse.workerId, connectionMetrics: nil))
+                                                    .mapError({ _ in
+
+                                                        return SwiftSyftError.unknownError(underlyingError: nil)
+
+                                                    })
+                                                    .eraseToAnyPublisher()
+                                            }
 
                                             if authResponse.requiresSpeedTest {
 
-                                                return self.getConnectionMetrics(workerId: authResponse.workerId)
+                                                return strongSelf.getConnectionMetrics(workerId: authResponse.workerId)
 
                                             } else {
 
@@ -388,9 +420,14 @@ public class SyftJob: SyftJobProtocol {
                                             let (workerId, connectionMetrics) = result
                                             return self.cycleRequest(forWorkerId: workerId, connectionMetrics: connectionMetrics)
                                         }
-                                        .handleEvents(receiveOutput: { [unowned self] cycleResponse in
+                                        .handleEvents(receiveOutput: { [weak self] cycleResponse in
+
+                                            guard let strongSelf = self else {
+                                                return
+                                            }
+
                                             let (cycleResponseSuccess, _) = cycleResponse
-                                            self.requestKey = cycleResponseSuccess.requestKey
+                                            strongSelf.requestKey = cycleResponseSuccess.requestKey
                                         })
                                         .share()
                                         .eraseToAnyPublisher()
@@ -548,7 +585,12 @@ public class SyftJob: SyftJobProtocol {
 
         let connectable = Publishers.MakeConnectable(upstream: clientConfigPublisher.zip(planPublisher, modelParamPublisher).eraseToAnyPublisher())
 
-        connectable.sink(receiveCompletion: { [unowned self] completion in
+        connectable.sink(receiveCompletion: { [weak self] completion in
+
+                guard let strongSelf = self else {
+                    return
+                }
+
                 switch completion {
                 case .finished:
                     break
@@ -557,23 +599,38 @@ public class SyftJob: SyftJobProtocol {
                     case .cycleRejected(let status, let timeout, _) where status == "rejected":
 
                         guard let timeout = timeout else {
-                            queue.async {
-                                self.onRejectedBlock(nil)
+                            strongSelf.queue.async { [weak self] in
+
+                                guard let strongSelf = self else {
+                                    return
+                                }
+
+                                strongSelf.onRejectedBlock(nil)
                             }
                             return
                         }
 
-                        queue.async {
-                            self.onRejectedBlock(TimeInterval(timeout))
+                        strongSelf.queue.async { [weak self] in
+
+                            guard let strongSelf = self else {
+                                return
+                            }
+
+                            strongSelf.onRejectedBlock(TimeInterval(timeout))
                         }
 
                     default:
-                        queue.async {
-                            self.onErrorBlock(error)
+                        strongSelf.queue.async { [weak self] in
+
+                            guard let strongSelf = self else {
+                                return
+                            }
+
+                            strongSelf.onErrorBlock(error)
                         }
                     }
                 }
-            }, receiveValue: { [unowned self] (clientConfig, planDictionary, modelParam) in
+            }, receiveValue: { [weak self] (clientConfig, planDictionary, modelParam) in
 
 //                guard let trainingModule = planDictionary.values.first else {
 //                    return
@@ -582,15 +639,24 @@ public class SyftJob: SyftJobProtocol {
 //                let syftPlan = SyftPlan(trainingModule: trainingModule, modelState: modelParam)
 //                self?.onReadyBlock(planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
 
-                let model = SyftModel(modelState: modelParam,
-                                      modelName: self.modelName,
-                                      version: self.version)
+                guard let strongSelf = self else {
+                    return
+                }
 
-                queue.async {
-                    if self.inference {
+                let model = SyftModel(modelState: modelParam,
+                                      modelName: strongSelf.modelName,
+                                      version: strongSelf.version)
+
+                strongSelf.queue.async { [weak self] in
+
+                    guard let strongSelf = self else {
+                        return
+                    }
+
+                    if strongSelf.inference {
                         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "inferenceCache-LastUpdate")
                     }
-                    self.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
+                    strongSelf.onReadyBlock(model, planDictionary, clientConfig, {[weak self] data in self?.reportDiff(diffData: data)})
 
                 }
 
@@ -744,12 +810,22 @@ public class SyftJob: SyftJobProtocol {
             return SwiftSyftError.authenticationFailure(underlyingError: $0)
 
         }
-        .flatMap { [unowned self] authResponse -> AnyPublisher<(workerId: String,
+        .flatMap { [weak self] authResponse -> AnyPublisher<(workerId: String,
                                      connectionMetrics: SyftConnectionMetrics?), SwiftSyftError> in
+
+            guard let strongSelf = self else {
+                return Just((workerId: authResponse.workerId, connectionMetrics: nil))
+                    .mapError({ _ in
+
+                        return SwiftSyftError.unknownError(underlyingError: nil)
+
+                    })
+                    .eraseToAnyPublisher()
+            }
 
             if authResponse.requiresSpeedTest {
 
-                return self.getConnectionMetrics(workerId: authResponse.workerId)
+                return strongSelf.getConnectionMetrics(workerId: authResponse.workerId)
 
             } else {
 
@@ -763,14 +839,23 @@ public class SyftJob: SyftJobProtocol {
 
             }
 
-        }.sink(receiveCompletion: { [unowned self] completionResult in
+        }.sink(receiveCompletion: { [weak self] completionResult in
+
+            guard let strongSelf = self else {
+                return
+            }
 
             switch completionResult {
             case .finished:
                 break
             case .failure(let error):
-                queue.async {
-                    self.onErrorBlock(error)
+                strongSelf.queue.async { [weak self] in
+
+                    guard let strongSelf = self else {
+                        return
+                    }
+
+                    strongSelf.onErrorBlock(error)
                 }
             }
 
@@ -783,27 +868,41 @@ public class SyftJob: SyftJobProtocol {
         }).store(in: &self.disposeBag)
 
         // Cycle Request Response -> Start Plan and model
-        receiveMessagePublisher.sink(receiveCompletion: { [unowned self] completionResult in
+        receiveMessagePublisher.sink(receiveCompletion: { [weak self] completionResult in
+
+            guard let strongSelf = self else {
+                return
+            }
 
             switch completionResult {
             case .finished:
                 break
             case .failure:
-                queue.async {
-                    self.onErrorBlock(SwiftSyftError.networkResponseError(underlyingError: nil))
+                strongSelf.queue.async { [weak self] in
+
+                    guard let strongSelf = self else {
+                        return
+                    }
+
+                    strongSelf.onErrorBlock(SwiftSyftError.networkResponseError(underlyingError: nil))
                 }
             }
 
-        }, receiveValue: { [unowned self] cycleRequestResponse in
+        }, receiveValue: { [weak self] cycleRequestResponse in
+
+            guard let strongSelf = self else {
+                return
+            }
+
             switch cycleRequestResponse {
             case .cycleRequestResponse(let result):
                 switch result {
                 case .success(let cycleSuccess):
-                    self.requestKey = cycleSuccess.requestKey
-                    if let workerId = self.workerId {
+                    strongSelf.requestKey = cycleSuccess.requestKey
+                    if let workerId = strongSelf.workerId {
                         let cycleResponsePublisher = CurrentValueSubject<(cycleResponse: CycleResponseSuccess,
                             workerId: String), SwiftSyftError>((cycleResponse: cycleSuccess, workerId: workerId)).eraseToAnyPublisher()
-                        self.startPlanAndModelDownload(withCycleResponse: cycleResponsePublisher)
+                        strongSelf.startPlanAndModelDownload(withCycleResponse: cycleResponsePublisher)
                     }
                 case .failure(let error):
                     print(error.localizedDescription)
