@@ -33,7 +33,7 @@ Pod::Spec.new do |s|
 
   s.homepage         = 'https://github.com/kishanNimbleEdge/kishanNimbleEdge.git'
   s.license          = { :type => 'Apache 2.0', :file => 'LICENSE' }
-  s.author           = { 'NimbleEdge' => 'dev@nimbleedge.com' }
+  s.author           = { 'NimbleEdge' => 'admin@nimbleedgehq.ai' }
   s.source           = { :git => 'https://github.com/NimbleEdge/NimbleEdgeSwiftSyft.git', :tag => "#{s.version.to_s}" }
 
   s.pod_target_xcconfig = { 'ENABLE_BITCODE' => 'NO' }
